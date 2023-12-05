@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "ssd_doghouse"
+version = "0.1.0"
+description = ""
+authors = ["MatteoPuccio <matteopuccio2000@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+Django = "^5.0"
+djangorestframework = "^3.14.0"
+django-cors-headers = "^4.3.1"
+coreapi = "^2.3.3"
+PyYAML = "^6.0.1"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
