@@ -13,6 +13,8 @@ coreapi = "^2.3.3"
 PyYAML = "^6.0.1"
 pytest-django = "^4.7.0"
 mixer = "^7.2.2"
+coverage = "^7.3.2"
+django-extensions = "^3.2.3"
 
 [tool.poetry.dev-dependencies]
 

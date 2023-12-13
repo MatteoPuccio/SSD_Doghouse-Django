@@ -1,10 +1,14 @@
 import json
 import re
 
-from django.core.validators import MinLengthValidator, RegexValidator, URLValidator
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.core.validators import MinLengthValidator, RegexValidator, URLValidator, MaxLengthValidator
 from django.db import models
 from doghouse.settings import BASE_DIR
 from dogs.validators import validate_date
+
+picture_source_prefix = 'https://i.imgur.com/'
 
 
 def get_breeds():
@@ -19,16 +23,36 @@ sizes = [('XS', 'Extra Small'), ('S', 'Small'), ('M', 'Medium'), ('L', 'Large'),
 
 class Dog(models.Model):
     name = models.CharField(max_length=20,
-                            validators=[RegexValidator(regex=r'^[A-Z][a-z]*$'), MinLengthValidator(2)],
-                            default='Unnamed')
+                            validators=[RegexValidator(regex=r'^[A-Z][a-z]+$',
+                                                       message='Dog name cannot contain invalid characters\
+                                                        and must only have an uppercase character at the start.'),
+                                        MinLengthValidator(2)],
+                            default='Unnamed', help_text='Dog name')
     breed = models.CharField(choices=breeds, max_length=50)
     sex = models.CharField(choices=sexes, max_length=1)
     birth_date = models.DateField(validators=[validate_date])
     entry_date = models.DateField(validators=[validate_date])
     neutered = models.BooleanField()
-    description = models.CharField(max_length=400, validators=[RegexValidator(regex=r'^[a-zA-Z0-9,;. \-\t?!]*$')])
-    estimated_size = models.CharField(choices=sizes, max_length=2)
-    picture = models.CharField(validators=[URLValidator()], max_length=500, null=True)
+    description = models.TextField(
+        validators=[RegexValidator(regex=r'^[a-zA-Z0-9,;. \-\t?!]*$',
+                                   message='Dog description cannot contain invalid characters.'),
+                    MaxLengthValidator(400)],
+        null=True, blank=True, help_text='Dog description')
+    estimated_adult_size = models.CharField(choices=sizes, max_length=2)
+    picture = models.CharField(validators=[RegexValidator(rf'^{picture_source_prefix}.*$',
+                                                          message=f"Image must have prefix {picture_source_prefix}")],
+                               null=True, blank=True,
+                               max_length=200, help_text='Dog picture url')
+    interested_users = models.ManyToManyField(User, blank=True)
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        if self.entry_date is None:
+            raise ValidationError('Entry date must be specified')
+        if self.birth_date is None:
+            raise ValidationError('Birth date must be specified')
+        if self.entry_date < self.birth_date:
+            raise ValidationError("Entry date must be after birth date")
+        return super().clean()
