@@ -30,5 +30,5 @@ urlpatterns = [
     path('schema/', get_schema_view(title=API_TITLE)),
     path('api/v1/dogs/', include('dogs.urls')),
     path('api/v1/auth/', include('dj_rest_auth.urls')),
-    path('api/v1/auth/registration', include('dj_rest_auth.registration.urls'))
+    path('api/v1/auth/registration/', include('dj_rest_auth.registration.urls'))
 ]
