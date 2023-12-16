@@ -3,7 +3,7 @@ import datetime
 import pytest
 from django.core.exceptions import ValidationError
 from mixer.backend.django import mixer
-from dogs.models import picture_source_prefix
+from dogs.models import picture_source_prefix, Dog
 
 dog_model = 'dogs.Dog'
 
@@ -196,7 +196,6 @@ def test_picture_not_from_source_raises_exception(db):
 
 def test_picture_length_201_raises_exception(db):
     picture = 'A' * (201 - len(picture_source_prefix))
-    print(picture_source_prefix + picture)
     dog = mixer.blend(dog_model, picture=picture_source_prefix + picture)
     with pytest.raises(ValidationError) as err:
         dog.full_clean()
@@ -246,3 +245,15 @@ def test_users_in_interested_users(db):
     dog.interested_users.set([user1, user2])
     assert dog.interested_users.filter(id=user1.id).exists() and dog.interested_users.filter(
         id=user2.id).exists() and not dog.interested_users.filter(id=user3.id).exists()
+
+
+def test_dog_clean_none_birth_date_raises_exception(db, today_date):
+    dog = Dog(birth_date=None, entry_date=today_date)
+    with pytest.raises(ValidationError) as err:
+        dog.clean()
+
+
+def test_dog_clean_none_entry_date_raises_exception(db, today_date):
+    dog = Dog(birth_date=today_date, entry_date=None)
+    with pytest.raises(ValidationError) as err:
+        dog.clean()

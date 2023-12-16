@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.contrib.auth.models import Group
 from mixer.backend.django import mixer
 from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_403_FORBIDDEN, HTTP_304_NOT_MODIFIED, \
-    HTTP_204_NO_CONTENT
+    HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from rest_framework.test import APIClient
 import json
 
@@ -23,12 +23,8 @@ def today_date():
 
 
 @pytest.fixture()
-def dogs(db):
-    return [
-        mixer.blend('dogs.Dog'),
-        mixer.blend('dogs.Dog'),
-        mixer.blend('dogs.Dog'),
-    ]
+def dogs(db, today_date, yesterday_date):
+    return [mixer.blend('dogs.Dog', birth_date=yesterday_date, entry_date=today_date) for _ in range(3)]
 
 
 def get_client(user=None):
@@ -86,6 +82,19 @@ def delete_dog_response(user=None):
     return data, response
 
 
+def add_dog_to_user_interested(user=None):
+    dog = mixer.blend("dogs.Dog", birth_date=datetime.date.today() - datetime.timedelta(1),
+                      entry_date=datetime.date.today())
+    path = reverse('favourite-dogs')
+    client = get_client(user)
+
+    serializer = DogSerializer(dog)
+    data = serializer.data
+
+    response = client.post(path, data=data, format='json')
+    return data, response
+
+
 def test_anon_user_get_dog_list(dogs):
     path = reverse('dogs-list')
     client = get_client()
@@ -95,8 +104,8 @@ def test_anon_user_get_dog_list(dogs):
     assert len(obj) == len(dogs)
 
 
-def test_anon_user_get_dog_details(db):
-    dog = mixer.blend('dogs.Dog')
+def test_anon_user_get_dog_details(db, today_date, yesterday_date):
+    dog = mixer.blend('dogs.Dog', birth_date=yesterday_date, entry_date=today_date)
     path = reverse('dogs-detail', kwargs={'pk': dog.pk})
     client = get_client()
     response = client.get(path)
@@ -158,8 +167,6 @@ def test_doghouse_worker_delete_dog(db):
 
     data, response = delete_dog_response(user)
 
-    print(response)
-
     assert (response.status_code == HTTP_204_NO_CONTENT
             and not Dog.objects.filter(id=data['id']).exists())
 
@@ -172,3 +179,39 @@ def test_not_authorized_delete_dog(db):
 
     assert (response.status_code == HTTP_403_FORBIDDEN and Dog.objects.filter(id=data['id']).exists())
 
+
+def test_add_dog_to_user_interested_list(db):
+    user = mixer.blend('auth.User')
+
+    data, response = add_dog_to_user_interested(user)
+
+    assert (response.status_code == HTTP_200_OK and Dog.objects.filter(id=data['id']).get().interested_users.filter(
+        id=user.id).exists())
+
+
+def test_add_dog_to_user_interested_list_not_authenticated(db):
+    _, response = add_dog_to_user_interested()
+
+    assert (response.status_code == HTTP_403_FORBIDDEN)
+
+
+def test_add_dog_to_user_interested_list_id_not_present_in_db(db):
+    user = mixer.blend('auth.User')
+
+    path = reverse('favourite-dogs')
+    client = get_client(user)
+
+    response = client.post(path, data={'id': -1}, format='json')
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+
+
+def test_add_dog_to_user_interested_list_id_not_present_in_request(db):
+    user = mixer.blend('auth.User')
+
+    path = reverse('favourite-dogs')
+    client = get_client(user)
+
+    response = client.post(path)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
