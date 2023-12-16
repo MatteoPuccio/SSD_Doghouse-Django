@@ -1,3 +1,6 @@
+import datetime
+
+from django_filters import rest_framework as filters
 from django.shortcuts import render
 from rest_framework import viewsets, views, status
 from rest_framework.permissions import IsAuthenticated
@@ -12,6 +15,25 @@ class DogViewSet(viewsets.ModelViewSet):
     permission_classes = [IsDoghouseWorker]
     queryset = Dog.objects.all()
     serializer_class = DogSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        breed = self.request.query_params.get("breed", None)
+        estimated_adult_size = self.request.query_params.get("estimated_adult_size", None)
+        birth_date_lte = self.request.query_params.get("birth_date_lte", None)
+        birth_date_gte = self.request.query_params.get("birth_date_gte", None)
+
+        if breed is not None:
+            qs = qs.filter(breed=breed)
+        if estimated_adult_size is not None:
+            qs = qs.filter(estimated_adult_size=estimated_adult_size)
+        if birth_date_lte is not None:
+            qs = qs.filter(birth_date__year__lte=birth_date_lte)
+        if birth_date_gte is not None:
+            qs = qs.filter(birth_date__year__gte=birth_date_gte)
+
+        return qs.all()
 
 
 class FavouriteDogsView(views.APIView):

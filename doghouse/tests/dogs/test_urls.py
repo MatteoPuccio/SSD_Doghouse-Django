@@ -347,3 +347,61 @@ def test_delete_dog_from_user_interested_list_id_not_present_in_user_favourites(
 
     assert response.status_code == HTTP_400_BAD_REQUEST and obj[
         'message'] == FavouriteDogsView.DOG_NOT_IN_FAVOURITES_MESSAGE
+
+
+def test_query_dogs_by_breed(db, today_date):
+    user = mixer.blend('auth.User')
+    dog1 = mixer.blend('dogs.Dog', breed='Spinone Italiano', birth_date=today_date, entry_date=today_date)
+    dog2 = mixer.blend('dogs.Dog', breed='Yorkshire Terrier', birth_date=today_date, entry_date=today_date)
+
+    path = reverse('dogs-list') + '?breed=Spinone Italiano'
+    client = get_client(user)
+
+    response = client.get(path)
+    obj = parse(response)
+
+    dog1_json = DogSerializer(dog1).data
+    dog2_json = DogSerializer(dog2).data
+
+    print(obj)
+
+    assert response.status_code == HTTP_200_OK and dog1_json in obj and dog2_json not in obj
+
+
+def test_query_dogs_by_estimated_adult_size(db, today_date):
+    user = mixer.blend('auth.User')
+    dog1 = mixer.blend('dogs.Dog', estimated_adult_size='L', birth_date=today_date, entry_date=today_date)
+    dog2 = mixer.blend('dogs.Dog', estimated_adult_size='XL', birth_date=today_date, entry_date=today_date)
+
+    path = reverse('dogs-list') + '?estimated_adult_size=L'
+    client = get_client(user)
+
+    response = client.get(path)
+    obj = parse(response)
+
+    dog1_json = DogSerializer(dog1).data
+    dog2_json = DogSerializer(dog2).data
+
+    assert response.status_code == HTTP_200_OK and dog1_json in obj and dog2_json not in obj
+
+
+def test_query_dogs_by_birth_date(db, today_date):
+    user = mixer.blend('auth.User')
+    dog1 = mixer.blend('dogs.Dog', birth_date=datetime.date(2011, 12, 2), entry_date=today_date)
+    dog2 = mixer.blend('dogs.Dog', birth_date=datetime.date(2013, 1, 15), entry_date=today_date)
+    dog3 = mixer.blend('dogs.Dog', birth_date=datetime.date(2018, 5, 26), entry_date=today_date)
+    dog4 = mixer.blend('dogs.Dog', birth_date=datetime.date(2020, 8, 21), entry_date=today_date)
+
+    path = reverse('dogs-list') + '?birth_date_gte=2013' + '&birth_date_lte=2019'
+    client = get_client(user)
+
+    response = client.get(path)
+    obj = parse(response)
+
+    dog1_json = DogSerializer(dog1).data
+    dog2_json = DogSerializer(dog2).data
+    dog3_json = DogSerializer(dog3).data
+    dog4_json = DogSerializer(dog4).data
+
+    assert response.status_code == HTTP_200_OK and dog2_json in obj and dog3_json in obj \
+           and dog1_json not in obj and dog4_json not in obj
