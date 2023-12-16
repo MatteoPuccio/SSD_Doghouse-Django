@@ -32,7 +32,7 @@ def get_role_response(user=None):
 
 def test_get_role_user_is_worker(db):
     user = mixer.blend("auth.User")
-    group = mixer.blend('auth.Group', name='doghouse-worker')
+    group = mixer.blend('auth.Group', name='doghouse-workers')
     user.groups.set([group])
 
     response = get_role_response(user)

@@ -37,12 +37,12 @@ class Dog(models.Model):
         validators=[RegexValidator(regex=r'^[a-zA-Z0-9,;. \-\t?!]*$',
                                    message='Dog description cannot contain invalid characters.'),
                     MaxLengthValidator(400)],
-        null=True, blank=True, help_text='Dog description')
+        blank=True, default='', help_text='Dog description')
     estimated_adult_size = models.CharField(choices=sizes, max_length=2)
     picture = models.CharField(validators=[RegexValidator(rf'^{picture_source_prefix}.*$',
                                                           message=f"Image must have prefix {picture_source_prefix}")],
-                               null=True, blank=True,
-                               max_length=200, help_text='Dog picture url')
+                               max_length=200, help_text='Dog picture url',
+                               blank=True, default='')
     interested_users = models.ManyToManyField(User, blank=True)
 
     def __str__(self):

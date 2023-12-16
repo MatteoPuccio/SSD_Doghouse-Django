@@ -8,4 +8,4 @@ class RoleView(views.APIView):
 
     def get(self, request, format=None):
         return Response({'role': 'doghouse-worker'}) if request.user.groups.filter(
-            name='doghouse-worker').exists() else Response({'role': 'user'})
+            name='doghouse-workers').exists() else Response({'role': 'user'})
