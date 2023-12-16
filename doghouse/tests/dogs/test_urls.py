@@ -3,13 +3,14 @@ import pytest
 from django.urls import reverse
 from django.contrib.auth.models import Group
 from mixer.backend.django import mixer
-from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_403_FORBIDDEN, HTTP_304_NOT_MODIFIED, \
+from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_403_FORBIDDEN, \
     HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from rest_framework.test import APIClient
 import json
 
 from dogs.models import Dog
 from dogs.serializers import DogSerializer
+from dogs.views import FavouriteDogsView
 
 
 @pytest.fixture()
@@ -202,8 +203,22 @@ def test_add_dog_to_user_interested_list_id_not_present_in_db(db):
     client = get_client(user)
 
     response = client.post(path, data={'id': -1}, format='json')
+    obj = parse(response)
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.status_code == HTTP_400_BAD_REQUEST and obj[
+        'message'] == FavouriteDogsView.DOG_NOT_FOUND_MESSAGE
+
+
+def test_add_dog_to_user_interested_list_id_not_integer(db):
+    user = mixer.blend('auth.User')
+
+    path = reverse('favourite-dogs')
+    client = get_client(user)
+
+    response = client.post(path, data={'id': "enfbje"}, format='json')
+    obj = parse(response)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST and obj['message'] == FavouriteDogsView.ID_NOT_INT_MESSAGE
 
 
 def test_add_dog_to_user_interested_list_id_not_present_in_request(db):
@@ -213,5 +228,122 @@ def test_add_dog_to_user_interested_list_id_not_present_in_request(db):
     client = get_client(user)
 
     response = client.post(path)
+    obj = parse(response)
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.status_code == HTTP_400_BAD_REQUEST and obj['message'] == FavouriteDogsView.ABSENT_ID_MESSAGE
+
+
+def test_add_dog_to_user_interested_list_dog_already_added(db, dogs):
+    user = mixer.blend('auth.User')
+    dog = dogs[0]
+    dog.interested_users.add(user)
+
+    path = reverse('favourite-dogs')
+    client = get_client(user)
+
+    serializer = DogSerializer(dog)
+
+    response = client.post(path, data=serializer.data, format='json')
+    obj = parse(response)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST and obj[
+        'message'] == FavouriteDogsView.DOG_ALREADY_IN_FAVOURITES_MESSAGE
+
+
+def test_get_dogs_from_user_interested_list(db, dogs):
+    user = mixer.blend('auth.User')
+    for dog in dogs:
+        dog.interested_users.add(user)
+
+    path = reverse('favourite-dogs')
+    client = get_client(user)
+
+    response = client.get(path)
+    obj = parse(response)
+
+    serializer = DogSerializer(dogs, many=True)
+
+    assert response.status_code == HTTP_200_OK and len(dogs) == len(obj['favourite-dogs'])
+
+    for dog in serializer.data:
+        assert dog in obj['favourite-dogs']
+
+
+def test_get_dogs_from_user_interested_list_not_authenticated(db):
+    path = reverse('favourite-dogs')
+    client = get_client()
+
+    response = client.get(path)
+
+    assert response.status_code == HTTP_403_FORBIDDEN
+
+
+def test_delete_dog_from_user_interested_list(db, dogs):
+    user = mixer.blend('auth.User')
+    dog = dogs[0]
+    dog.interested_users.add(user)
+
+    path = reverse('favourite-dogs')
+    client = get_client(user)
+
+    serializer = DogSerializer(dog)
+
+    response = client.delete(path, data=serializer.data, format='json')
+    assert response.status_code == HTTP_200_OK and not dog.interested_users.filter(id=user.id).exists()
+
+
+def test_delete_dog_from_user_interested_list_not_authenticated(db):
+    path = reverse('favourite-dogs')
+    client = get_client()
+
+    response = client.delete(path)
+    assert response.status_code == HTTP_403_FORBIDDEN
+
+
+def test_delete_dog_from_user_interested_list_id_not_present_in_db(db):
+    user = mixer.blend('auth.User')
+    path = reverse('favourite-dogs')
+    client = get_client(user)
+
+    response = client.delete(path, data={'id': -1}, format='json')
+    obj = parse(response)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST and obj[
+        'message'] == FavouriteDogsView.DOG_NOT_FOUND_MESSAGE
+
+
+def test_delete_dog_from_user_interested_list_id_not_integer(db):
+    user = mixer.blend('auth.User')
+    path = reverse('favourite-dogs')
+    client = get_client(user)
+
+    response = client.delete(path, data={'id': "jebkwbtjke"}, format='json')
+    obj = parse(response)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST and obj['message'] == FavouriteDogsView.ID_NOT_INT_MESSAGE
+
+
+def test_delete_dog_from_user_interested_list_id_not_present_in_request(db):
+    user = mixer.blend('auth.User')
+    path = reverse('favourite-dogs')
+    client = get_client(user)
+
+    response = client.delete(path)
+    obj = parse(response)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST and obj['message'] == FavouriteDogsView.ABSENT_ID_MESSAGE
+
+
+def test_delete_dog_from_user_interested_list_id_not_present_in_user_favourites(db, dogs):
+    user = mixer.blend('auth.User')
+
+    path = reverse('favourite-dogs')
+    client = get_client(user)
+
+    serializer = DogSerializer(dogs[0])
+
+    response = client.delete(path, data=serializer.data, format='json')
+    obj = parse(response)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST and obj[
+        'message'] == FavouriteDogsView.DOG_NOT_IN_FAVOURITES_MESSAGE
