@@ -1,6 +1,6 @@
-from rest_framework import serializers
+from rest_framework import serializers, validators
 
-from dogs.models import Dog
+from dogs.models import Dog, FavouriteDog
 
 
 class DogSerializer(serializers.ModelSerializer):
@@ -9,3 +9,18 @@ class DogSerializer(serializers.ModelSerializer):
                   'description', 'estimated_adult_size', 'picture')
         model = Dog
 
+
+class FavouriteDogSerializer(serializers.ModelSerializer):
+    dog_id = serializers.PrimaryKeyRelatedField(queryset=Dog.objects.all(), source='dog', write_only=True)
+    dog = DogSerializer(read_only=True)
+
+    class Meta:
+        fields = ('user', 'dog', 'dog_id')
+        read_only_fields = ['user']
+        model = FavouriteDog
+        validators = [
+            validators.UniqueTogetherValidator(
+                queryset=FavouriteDog.objects.all(),
+                fields=['user', 'dog_id']
+            )
+        ]

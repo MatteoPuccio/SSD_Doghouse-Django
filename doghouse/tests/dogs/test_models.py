@@ -141,8 +141,7 @@ def test_neutered_exists(db):
 @pytest.mark.parametrize('description', ['Lorem ipsum dolor sit amet, consectetur adipiscing elit',
                                          'sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
                                          'Ut enim ad minim veniam, quis nostrud exercitation ullamco',
-                                         '',
-                                         None])
+                                         ''])
 def test_valid_description(db, description):
     dog = mixer.blend(dog_model, description=description)
     assert dog.description == description
@@ -182,7 +181,7 @@ def test_estimated_adult_size_not_in_dict_raises_exception(db):
 @pytest.mark.parametrize('picture', [picture_source_prefix + 'x.png',
                                      picture_source_prefix + 'c.jpeg',
                                      picture_source_prefix + 'test.gif',
-                                     None, ''])
+                                     ''])
 def test_valid_picture(db, picture):
     dog = mixer.blend(dog_model, picture=picture)
     assert dog.picture == picture
@@ -211,7 +210,6 @@ def test_valid_dog(db):
     description = 'Pluto di Topolino'
     estimated_adult_size = 'L'
     picture = 'https://disney.com/pluto.png'
-    user = mixer.blend('auth.User')
 
     dog = mixer.blend(dog_model, name=name, breed=breed, sex=sex,
                       birth_date=birth_date,
@@ -221,30 +219,16 @@ def test_valid_dog(db):
                       estimated_adult_size=estimated_adult_size,
                       picture=picture
                       )
-    dog.interested_users.set([user])
-
     assert dog.name == name and dog.breed == breed and dog.sex == sex \
            and dog.birth_date == birth_date \
            and dog.entry_date == entry_date \
            and dog.neutered == neutered and dog.description == description \
-           and dog.estimated_adult_size == estimated_adult_size and dog.picture == picture \
-           and dog.interested_users.filter(id=user.id).exists()
+           and dog.estimated_adult_size == estimated_adult_size and dog.picture == picture
 
 
-def test_to_str(db):
+def test_dog_to_str(db):
     dog = mixer.blend(dog_model, name='Pluto')
     assert str(dog) == 'Pluto'
-
-
-def test_users_in_interested_users(db):
-    user1 = mixer.blend('auth.User')
-    user2 = mixer.blend('auth.User')
-    user3 = mixer.blend('auth.User')
-
-    dog = mixer.blend(dog_model)
-    dog.interested_users.set([user1, user2])
-    assert dog.interested_users.filter(id=user1.id).exists() and dog.interested_users.filter(
-        id=user2.id).exists() and not dog.interested_users.filter(id=user3.id).exists()
 
 
 def test_dog_clean_none_birth_date_raises_exception(db, today_date):
@@ -257,3 +241,19 @@ def test_dog_clean_none_entry_date_raises_exception(db, today_date):
     dog = Dog(birth_date=today_date, entry_date=None)
     with pytest.raises(ValidationError) as err:
         dog.clean()
+
+
+def test_valid_favourite_dog(db, today_date):
+    dog = mixer.blend("dogs.Dog", birth_date=today_date, entry_date=today_date)
+    user = mixer.blend("auth.User")
+
+    favourite_dog = mixer.blend("dogs.FavouriteDog", user=user, dog=dog)
+    assert favourite_dog.user == user and favourite_dog.dog == dog
+
+
+def test_favourite_dog_to_str(db, today_date):
+    dog = mixer.blend("dogs.Dog", birth_date=today_date, entry_date=today_date)
+    user = mixer.blend("auth.User")
+
+    favourite_dog = mixer.blend("dogs.FavouriteDog", user=user, dog=dog)
+    assert str(favourite_dog) == f"{str(user)} - {str(dog)}"

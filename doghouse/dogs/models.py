@@ -24,8 +24,7 @@ sizes = [('XS', 'Extra Small'), ('S', 'Small'), ('M', 'Medium'), ('L', 'Large'),
 class Dog(models.Model):
     name = models.CharField(max_length=20,
                             validators=[RegexValidator(regex=r'^[A-Z][a-z]+$',
-                                                       message='Dog name cannot contain invalid characters\
-                                                        and must only have an uppercase character at the start.'),
+                                                       message='Dog name cannot contain invalid characters and must only have an uppercase character at the start.'),
                                         MinLengthValidator(2)],
                             default='Unnamed', help_text='Dog name')
     breed = models.CharField(choices=breeds, max_length=50)
@@ -43,7 +42,6 @@ class Dog(models.Model):
                                                           message=f"Image must have prefix {picture_source_prefix}")],
                                max_length=200, help_text='Dog picture url',
                                blank=True, default='')
-    interested_users = models.ManyToManyField(User, blank=True)
 
     def __str__(self):
         return self.name
@@ -56,3 +54,14 @@ class Dog(models.Model):
         if self.entry_date < self.birth_date:
             raise ValidationError("Entry date must be after birth date")
         return super().clean()
+
+
+class FavouriteDog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    dog = models.ForeignKey(Dog, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('user', 'dog')
+
+    def __str__(self):
+        return f"{self.user} - {self.dog}"

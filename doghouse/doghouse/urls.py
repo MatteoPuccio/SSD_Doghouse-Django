@@ -19,7 +19,6 @@ from django.urls import path, include
 from rest_framework.documentation import include_docs_urls
 from rest_framework.schemas import get_schema_view
 from doghouse.views import RoleView
-from dogs.views import FavouriteDogsView
 
 API_TITLE = "Doghouse API"
 API_DESCRIPTION = "A Web API for viewing and adopting different dogs."
@@ -32,6 +31,5 @@ urlpatterns = [
     path('api/v1/dogs/', include('dogs.urls')),
     path('api/v1/auth/', include('dj_rest_auth.urls')),
     path('api/v1/auth/registration/', include('dj_rest_auth.registration.urls')),
-    path('api/v1/role/', RoleView.as_view(), name='get-role'),
-    path('api/v1/favourite-dogs/', view=FavouriteDogsView.as_view(), name='favourite-dogs')
+    path('api/v1/role/', RoleView.as_view(), name='get-role')
 ]
