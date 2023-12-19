@@ -4,6 +4,12 @@ from dogs.models import Dog, FavouriteDog
 
 
 class DogSerializer(serializers.ModelSerializer):
+
+    def validate(self, data):
+        if data['entry_date'] < data['birth_date']:
+            raise serializers.ValidationError("Entry date must be after birth date")
+        return data
+
     class Meta:
         fields = ('id', 'name', 'breed', 'sex', 'birth_date', 'entry_date', 'neutered',
                   'description', 'estimated_adult_size', 'picture')

@@ -2,15 +2,12 @@ import datetime
 
 import pytest
 from django.core.exceptions import ValidationError
+from rest_framework import serializers
 from mixer.backend.django import mixer
 from dogs.models import picture_source_prefix, Dog
+from dogs.serializers import DogSerializer
 
 dog_model = 'dogs.Dog'
-
-
-@pytest.fixture()
-def yesterday_date():
-    return datetime.date.today() - datetime.timedelta(days=1)
 
 
 @pytest.fixture()
@@ -36,14 +33,14 @@ def test_dog_uppercase_in_middle(db):
         dog.full_clean()
 
 
-def test_name_length_21_chars_raises_exception(db):
-    dog = mixer.blend(dog_model, name='A' * 21)
+def test_name_length_21_chars_raises_exception(db, today_date):
+    dog = mixer.blend(dog_model, name='A' * 21, entry_date=today_date, birth_date=today_date)
     with pytest.raises(ValidationError) as err:
         dog.full_clean()
 
 
-def test_name_length_1_chars_raises_exception(db):
-    dog = mixer.blend(dog_model, name='A')
+def test_name_length_1_chars_raises_exception(db, today_date):
+    dog = mixer.blend(dog_model, name='A', entry_date=today_date, birth_date=today_date)
     with pytest.raises(ValidationError) as err:
         dog.full_clean()
 
@@ -54,8 +51,8 @@ def test_name_no_name_equals_unnamed(db):
 
 
 @pytest.mark.parametrize('name', ['g4nz0', 'dragonball$', '<alert>'])
-def test_name_containing_invalid_chars_raises_exception(db, name):
-    dog = mixer.blend(dog_model, name=name)
+def test_name_containing_invalid_chars_raises_exception(db, name, today_date):
+    dog = mixer.blend(dog_model, name=name, entry_date=today_date, birth_date=today_date)
     with pytest.raises(ValidationError) as err:
         dog.full_clean()
 
@@ -67,8 +64,8 @@ def test_valid_breed(db, breed):
     assert dog.breed == breed
 
 
-def test_breed_not_in_dogs_breed_json_raises_exception(db):
-    dog = mixer.blend(dog_model, breed='Cheems')
+def test_breed_not_in_dogs_breed_json_raises_exception(db, today_date):
+    dog = mixer.blend(dog_model, breed='Cheems', entry_date=today_date, birth_date=today_date)
     with pytest.raises(ValidationError) as err:
         dog.full_clean()
 
@@ -79,8 +76,8 @@ def test_valid_sex(db, sex):
     assert dog.sex == sex
 
 
-def test_sex_not_valid_raises_exception(db):
-    dog = mixer.blend(dog_model, sex='Xrlg')
+def test_sex_not_valid_raises_exception(db, today_date):
+    dog = mixer.blend(dog_model, sex='Xrlg', entry_date=today_date, birth_date=today_date)
     with pytest.raises(ValidationError) as err:
         dog.full_clean()
 
@@ -101,7 +98,7 @@ def test_birth_date_earlier_than_1980_raises_exception(db, today_date):
 
 
 def test_birth_date_older_than_today_raises_exception(db, today_date):
-    dog = mixer.blend(dog_model, birth_date=today_date + datetime.timedelta(days=1))
+    dog = mixer.blend(dog_model, birth_date=today_date + datetime.timedelta(days=1), entry_date=today_date)
     with pytest.raises(ValidationError) as err:
         dog.full_clean()
 
@@ -127,10 +124,12 @@ def test_entry_date_older_than_today_raises_exception(db, today_date):
         dog.full_clean()
 
 
-def test_entry_date_earlier_than_birth_date_raises_exception(db, today_date, yesterday_date):
-    dog = mixer.blend(dog_model, entry_date=yesterday_date, birth_date=today_date)
-    with pytest.raises(ValidationError) as err:
-        dog.full_clean()
+def test_entry_date_earlier_than_birth_date_raises_exception(db, today_date):
+    dog = mixer.blend(dog_model, entry_date=today_date - datetime.timedelta(days=1), birth_date=today_date)
+    serializer = DogSerializer(dog)
+    serializer = DogSerializer(data=serializer.data)
+    with pytest.raises(serializers.ValidationError) as err:
+        serializer.is_valid(raise_exception=True)
 
 
 def test_neutered_exists(db):
@@ -147,15 +146,15 @@ def test_valid_description(db, description):
     assert dog.description == description
 
 
-def test_description_longer_than_400_chars_raises_exception(db):
-    dog = mixer.blend(dog_model, description='A' * 401)
+def test_description_longer_than_400_chars_raises_exception(db, today_date):
+    dog = mixer.blend(dog_model, description='A' * 401, entry_date=today_date, birth_date=today_date)
     with pytest.raises(ValidationError) as err:
         dog.full_clean()
 
 
 @pytest.mark.parametrize('description', ['dog$', '/1)cn', '(&~', '<alert>'])
-def test_description_containing_invalid_chars_raises_exception(db, description):
-    dog = mixer.blend(dog_model, description=description)
+def test_description_containing_invalid_chars_raises_exception(db, description, today_date):
+    dog = mixer.blend(dog_model, description=description, entry_date=today_date, birth_date=today_date)
     with pytest.raises(ValidationError) as err:
         dog.full_clean()
 
@@ -172,30 +171,48 @@ def test_valid_estimated_adult_size(db, estimated_adult_size):
     assert dog.estimated_adult_size == estimated_adult_size
 
 
-def test_estimated_adult_size_not_in_dict_raises_exception(db):
-    dog = mixer.blend(dog_model, estimated_adult_size='XXXXL')
+def test_estimated_adult_size_not_in_dict_raises_exception(db, today_date):
+    dog = mixer.blend(dog_model, estimated_adult_size='XXXXL', entry_date=today_date, birth_date=today_date)
     with pytest.raises(ValidationError) as err:
         dog.full_clean()
 
 
 @pytest.mark.parametrize('picture', [picture_source_prefix + 'x.png',
                                      picture_source_prefix + 'c.jpeg',
-                                     picture_source_prefix + 'test.gif',
+                                     picture_source_prefix + 'test.jpg',
                                      ''])
 def test_valid_picture(db, picture):
     dog = mixer.blend(dog_model, picture=picture)
     assert dog.picture == picture
 
 
-def test_picture_not_from_source_raises_exception(db):
-    dog = mixer.blend(dog_model, picture='https://example.com')
+def test_picture_not_from_source_raises_exception(db, today_date):
+    dog = mixer.blend(dog_model, picture='https://example.com', entry_date=today_date, birth_date=today_date)
     with pytest.raises(ValidationError) as err:
         dog.full_clean()
 
 
-def test_picture_length_201_raises_exception(db):
+@pytest.mark.parametrize('picture', [picture_source_prefix + '<script>alert(20)</script>.png',
+                                     picture_source_prefix + '_.jpg',
+                                     picture_source_prefix + '$/~.jpeg'])
+def test_picture_contains_invalid_characters_raises_exception(db, picture, today_date):
+    dog = mixer.blend(dog_model, picture=picture, entry_date=today_date, birth_date=today_date)
+    with pytest.raises(ValidationError) as err:
+        dog.full_clean()
+
+
+@pytest.mark.parametrize('picture', [picture_source_prefix + 'x.gif',
+                                     picture_source_prefix + 'c.mp4',
+                                     picture_source_prefix + 'test'])
+def test_picture_not_valid_format_raises_exception(db, picture, today_date):
+    dog = mixer.blend(dog_model, picture=picture, entry_date=today_date, birth_date=today_date)
+    with pytest.raises(ValidationError) as err:
+        dog.full_clean()
+
+
+def test_picture_length_201_raises_exception(db, today_date):
     picture = 'A' * (201 - len(picture_source_prefix))
-    dog = mixer.blend(dog_model, picture=picture_source_prefix + picture)
+    dog = mixer.blend(dog_model, picture=picture_source_prefix + picture, entry_date=today_date, birth_date=today_date)
     with pytest.raises(ValidationError) as err:
         dog.full_clean()
 
@@ -229,18 +246,6 @@ def test_valid_dog(db):
 def test_dog_to_str(db):
     dog = mixer.blend(dog_model, name='Pluto')
     assert str(dog) == 'Pluto'
-
-
-def test_dog_clean_none_birth_date_raises_exception(db, today_date):
-    dog = Dog(birth_date=None, entry_date=today_date)
-    with pytest.raises(ValidationError) as err:
-        dog.clean()
-
-
-def test_dog_clean_none_entry_date_raises_exception(db, today_date):
-    dog = Dog(birth_date=today_date, entry_date=None)
-    with pytest.raises(ValidationError) as err:
-        dog.clean()
 
 
 def test_valid_favourite_dog(db, today_date):

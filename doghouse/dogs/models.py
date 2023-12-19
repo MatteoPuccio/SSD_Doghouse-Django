@@ -38,22 +38,13 @@ class Dog(models.Model):
                     MaxLengthValidator(400)],
         blank=True, default='', help_text='Dog description')
     estimated_adult_size = models.CharField(choices=sizes, max_length=2)
-    picture = models.CharField(validators=[RegexValidator(rf'^{picture_source_prefix}.*$',
+    picture = models.CharField(validators=[RegexValidator(rf'^{picture_source_prefix}[A-Za-z0-9]+\.(jpeg|png|jpg)$',
                                                           message=f"Image must have prefix {picture_source_prefix}")],
                                max_length=200, help_text='Dog picture url',
                                blank=True, default='')
 
     def __str__(self):
         return self.name
-
-    def clean(self):
-        if self.entry_date is None:
-            raise ValidationError('Entry date must be specified')
-        if self.birth_date is None:
-            raise ValidationError('Birth date must be specified')
-        if self.entry_date < self.birth_date:
-            raise ValidationError("Entry date must be after birth date")
-        return super().clean()
 
 
 class FavouriteDog(models.Model):
